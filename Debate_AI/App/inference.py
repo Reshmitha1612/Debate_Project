@@ -1,29 +1,34 @@
 # inference.py
-import os
 import torch
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 from .model import DistilBERTRegressor  # your custom model class
+import torch.hub
 
 # -------------------------------
-# Base directory
+# Hugging Face URLs for models
 # -------------------------------
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Debate_AI folder
-ARG_MODEL_PATH = os.path.join(BASE_DIR, "Models", "argument_scorer_model", "model.pt")
-JUST_MODEL_PATH = os.path.join(BASE_DIR, "Models", "justification_model")
+ARG_MODEL_HF_URL = "https://huggingface.co/Reshmitha1612/Argument_scorer/tree/main/argument_scorer_model"  # replace with your HF repo
+JUST_MODEL_HF_URL = "https://huggingface.co/Reshmitha1612/Justification_model/tree/main"   # replace with your HF repo
 
 # -------------------------------
 # Load Argument Scorer (custom DistilBERT)
 # -------------------------------
+# Download model weights from HF
+arg_model_weights_path = torch.hub.load_state_dict_from_url(
+    f"https://huggingface.co/{ARG_MODEL_HF_URL}/model.pt",
+    map_location="cpu"  # change to "cuda" if GPU is available
+)
 score_tokenizer = AutoTokenizer.from_pretrained("distilbert-base-uncased")
 score_model = DistilBERTRegressor()
-score_model.load_state_dict(torch.load(ARG_MODEL_PATH, map_location="cpu"))
+score_model.load_state_dict(arg_model_weights_path)
 score_model.eval()
 
 # -------------------------------
-# Load Justification Generator
+# Load Justification Generator (Seq2Seq)
 # -------------------------------
-just_tokenizer = AutoTokenizer.from_pretrained(JUST_MODEL_PATH, use_fast=False)
-just_model = AutoModelForSeq2SeqLM.from_pretrained(JUST_MODEL_PATH)
+just_tokenizer = AutoTokenizer.from_pretrained(JUST_MODEL_HF_URL, use_fast=False)
+just_model = AutoModelForSeq2SeqLM.from_pretrained(JUST_MODEL_HF_URL)
+just_model.eval()
 
 # -------------------------------
 # Helper functions
@@ -64,4 +69,6 @@ def prepare_team_arguments(messages):
     team_a_msgs = " ".join([msg.message for msg in messages if msg.team == "A"])
     team_b_msgs = " ".join([msg.message for msg in messages if msg.team == "B"])
     return team_a_msgs, team_b_msgs
+
+
 
