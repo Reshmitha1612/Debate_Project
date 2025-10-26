@@ -35,7 +35,7 @@ A real-time web app where users can **create or join debate rooms**, **argue liv
 1️⃣ Clone Repository
 
 ```bash
-git clone https://github.com/yourusername/ai-debate-judge.git
+git clone https://github.com/Reshmitha1612/Debate_Project.git
 cd ai-debate-judge
 ```
 
