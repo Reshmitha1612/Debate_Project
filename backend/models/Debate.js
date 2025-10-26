@@ -1,37 +1,34 @@
 import mongoose from "mongoose";
 
-const participantSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
-  team: { type: String, enum: ["A", "B"], required: true },
-  displayName: { type: String, required: true }
-}, { _id: false });
-
-const observerSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
-  displayName: { type: String, required: true }
-}, { _id: false });
-
 const argumentSchema = new mongoose.Schema({
-  userId: { type: String, required: true },
-  team: { type: String, enum: ["A", "B"], required: true },
-  message: { type: String, required: true }
-}, { _id: false });
+  userId: String,
+  team: String,
+  message: String,
+});
 
 const debateSchema = new mongoose.Schema({
-  roomId: { type: String, required: true, unique: true },
+  roomId: { type: String, unique: true, required: true },
   topic: { type: String, required: true },
-  type: { type: String },
-  maxParticipantsA: { type: Number },
-  maxParticipantsB: { type: Number },
-  participants: { type: [participantSchema], default: [] },
-  observers: { type: [observerSchema], default: [] },
-  arguments: { type: [argumentSchema], default: [] },
-  status: { type: String, enum: ["active", "finished"], default: "active" },
-  endedAt: { type: Date },
-  winner: { type: String },
-  justification: { type: String },
-  score_team_a: { type: Number, default: 0 },
-  score_team_b: { type: Number, default: 0 }
+  type: { type: String, default: "team" },
+  maxParticipantsA: { type: Number, default: 4 },
+  maxParticipantsB: { type: Number, default: 4 },
+  participants: [{ 
+    userId: String, 
+    displayName: String, 
+    team: String 
+  }],
+  observers: [{ 
+    userId: String, 
+    displayName: String 
+  }],
+  arguments: [argumentSchema],
+  status: { type: String, default: "waiting" },
+  winner: String,
+  justification: String,
+  score_team_a: Number,
+  score_team_b: Number,
+  endedAt: Date,
 }, { timestamps: true });
 
-export default mongoose.model("Debate", debateSchema);
+const Debate = mongoose.model("Debate", debateSchema);
+export default Debate;

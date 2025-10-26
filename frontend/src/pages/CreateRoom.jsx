@@ -6,21 +6,22 @@ import { AuthContext } from "../contexts/AuthContext";
 export default function CreateRoom() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
-  
+
   const [roomId, setRoomId] = useState(null);
   const [inviteLink, setInviteLink] = useState("");
   const [topic, setTopic] = useState("");
-  const [type, setType] = useState("team"); // "team" or "1v1"
+  const [type, setType] = useState("team");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   const handleCreateRoom = async () => {
-    // Validation
     if (!topic.trim()) {
       setError("Please enter a debate topic");
       return;
     }
 
     setError("");
+    setLoading(true);
 
     try {
       const res = await axios.post("/debates/create", {
@@ -29,13 +30,15 @@ export default function CreateRoom() {
         maxParticipantsA: type === "1v1" ? 1 : 4,
         maxParticipantsB: type === "1v1" ? 1 : 4,
       });
-      
+
       const newRoomId = res.data.roomId;
       setRoomId(newRoomId);
       setInviteLink(`${window.location.origin}/debate/${newRoomId}`);
     } catch (err) {
       console.error(err);
       setError(err.response?.data?.msg || "Failed to create room");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -49,7 +52,6 @@ export default function CreateRoom() {
         <div className="border rounded-lg p-6 bg-white shadow">
           <h2 className="text-3xl font-bold mb-6 text-center">Create Debate Room</h2>
 
-          {/* Topic Input */}
           <div className="mb-4">
             <label className="block font-semibold mb-2 text-gray-700">
               Debate Topic <span className="text-red-500">*</span>
@@ -63,10 +65,10 @@ export default function CreateRoom() {
               }}
               placeholder="e.g., Should AI replace human teachers?"
               className="w-full border p-3 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={loading}
             />
           </div>
 
-          {/* Type Selection */}
           <div className="mb-6">
             <label className="block font-semibold mb-2 text-gray-700">
               Debate Type <span className="text-red-500">*</span>
@@ -74,22 +76,24 @@ export default function CreateRoom() {
             <div className="flex gap-4">
               <button
                 onClick={() => setType("team")}
+                disabled={loading}
                 className={`flex-1 p-3 rounded-lg border-2 transition-colors ${
                   type === "team"
                     ? "border-blue-600 bg-blue-50 text-blue-700"
                     : "border-gray-300 hover:border-gray-400"
-                }`}
+                } ${loading ? "opacity-50" : ""}`}
               >
                 <div className="font-bold">Team Debate</div>
                 <div className="text-sm text-gray-600">Up to 4 vs 4</div>
               </button>
               <button
                 onClick={() => setType("1v1")}
+                disabled={loading}
                 className={`flex-1 p-3 rounded-lg border-2 transition-colors ${
                   type === "1v1"
                     ? "border-blue-600 bg-blue-50 text-blue-700"
                     : "border-gray-300 hover:border-gray-400"
-                }`}
+                } ${loading ? "opacity-50" : ""}`}
               >
                 <div className="font-bold">1v1 Debate</div>
                 <div className="text-sm text-gray-600">One vs One</div>
@@ -97,19 +101,18 @@ export default function CreateRoom() {
             </div>
           </div>
 
-          {/* Error Message */}
           {error && (
             <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
               {error}
             </div>
           )}
 
-          {/* Create Button */}
           <button
             onClick={handleCreateRoom}
-            className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-500 font-bold transition-colors"
+            disabled={loading}
+            className="w-full bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-500 font-bold disabled:opacity-50"
           >
-            Create Room
+            {loading ? "Creating..." : "Create Room"}
           </button>
         </div>
       ) : (
@@ -118,7 +121,6 @@ export default function CreateRoom() {
             ✅ Room Created Successfully!
           </h2>
 
-          {/* Room Details */}
           <div className="mb-6 p-4 bg-gray-50 rounded">
             <div className="mb-2">
               <strong className="text-gray-700">Topic:</strong>
@@ -136,31 +138,29 @@ export default function CreateRoom() {
             </div>
           </div>
 
-          {/* Invite Link */}
           <div className="mb-6">
             <label className="block font-semibold mb-2 text-gray-700">
-              Room Id
+              Invite Link
             </label>
             <div className="flex gap-2">
               <input
                 type="text"
                 readOnly
-                value={roomId}
+                value={inviteLink}
                 className="flex-1 border p-3 rounded-lg bg-white"
               />
               <button
                 onClick={() => {
                   navigator.clipboard.writeText(inviteLink);
-                  alert("Invite link copied to clipboard!");
+                  alert("Invite link copied!");
                 }}
-                className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-500 whitespace-nowrap"
+                className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-500"
               >
                 📋 Copy
               </button>
             </div>
           </div>
 
-          {/* Action Buttons */}
           <div className="flex gap-3">
             <button
               onClick={handleEnterRoom}
