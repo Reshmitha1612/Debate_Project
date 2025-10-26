@@ -23,7 +23,6 @@ export default function DebateRoom() {
   const [loading, setLoading] = useState(true);
   const messagesEndRef = useRef(null);
 
-  // Fetch initial room info
   useEffect(() => {
     const fetchRoomInfo = async () => {
       try {
@@ -44,7 +43,6 @@ export default function DebateRoom() {
     }
   }, [roomId, user, navigate]);
 
-  // Socket listeners
   useEffect(() => {
     if (!user) return;
 
@@ -97,24 +95,38 @@ export default function DebateRoom() {
     setInput("");
   };
 
+  // 🔥 MODIFIED: Send all messages when finishing debate
   const finishDebate = async () => {
     if (!window.confirm("Finish debate for everyone?")) return;
 
     try {
       console.log("=== Starting debate end process ===");
       console.log("DebateId (roomId):", roomId);
-      console.log("Messages count:", messages.length);
+      console.log("Total messages:", messages.length);
 
-      // Format messages WITHOUT timestamp
-      const formattedArguments = messages.map(msg => ({
-        userId: msg.userId,
-        team: msg.role,
-        message: msg.text,
-      }));
+      // 🔥 Format all messages as arguments
+      const formattedArguments = messages
+        .filter(msg => msg.role !== "observer")
+        .map(msg => {
+          let normalizedTeam = msg.role;
+          if (msg.role === "teamA") normalizedTeam = "A";
+          else if (msg.role === "teamB") normalizedTeam = "B";
+
+          return {
+            userId: msg.userId,
+            team: normalizedTeam,
+            message: msg.text,
+          };
+        });
 
       console.log("Formatted arguments:", formattedArguments);
 
-      // Step 1: End debate and save arguments
+      if (formattedArguments.length === 0) {
+        alert("No arguments to analyze. Please add some debate messages first.");
+        return;
+      }
+
+      // 🔥 Send arguments to backend when ending debate
       const endResponse = await fetch(
         `http://localhost:5000/api/debates/end/${roomId}`,
         {
@@ -130,15 +142,16 @@ export default function DebateRoom() {
       console.log("End response status:", endResponse.status);
 
       if (!endResponse.ok) {
-        const errorText = await endResponse.text();
-        console.error("End debate error response:", errorText);
-        throw new Error(`Failed to end debate: ${endResponse.status}`);
+        const errorData = await endResponse.json();
+        console.error("End debate error response:", errorData);
+        throw new Error(errorData.msg || `Failed to end debate: ${endResponse.status}`);
       }
 
       const endResult = await endResponse.json();
       console.log("Debate ended successfully:", endResult);
+      console.log("Total arguments saved:", endResult.debate?.arguments?.length || 0);
 
-      // Step 2: Try AI analysis
+      // AI Analysis
       let aiResult = null;
       let aiAnalysisFailed = false;
 
@@ -157,7 +170,8 @@ export default function DebateRoom() {
           aiResult = await analyzeResponse.json();
           console.log("AI analysis successful:", aiResult);
         } else {
-          console.warn("AI analysis failed");
+          const errorData = await analyzeResponse.json();
+          console.warn("AI analysis failed:", errorData);
           aiAnalysisFailed = true;
         }
       } catch (aiError) {
@@ -165,25 +179,19 @@ export default function DebateRoom() {
         aiAnalysisFailed = true;
       }
 
-      // Step 3: Prepare final results
       const finalResult = {
         winner: aiResult?.result?.winner || "Analysis pending",
-        aiSummary:
-          aiResult?.result?.aiSummary ||
-          (aiAnalysisFailed
-            ? "AI analysis failed. Debate arguments have been saved."
-            : "Debate ended. Thank you for participating!"),
-        reasoning:
-          aiResult?.result?.reasoning ||
-          (aiAnalysisFailed ? "AI analysis unavailable" : ""),
-        scores: aiResult?.result?.scores || { teamA: 0, teamB: 0 },
-        totalArguments: messages.length,
+        justification:
+          aiResult?.result?.justification ||
+          (aiAnalysisFailed ? "AI analysis unavailable" : "Debate ended. Thank you for participating!"),
+        score_team_a: aiResult?.result?.score_team_a || 0,
+        score_team_b: aiResult?.result?.score_team_b || 0,
+        totalArguments: formattedArguments.length,
         aiAnalysisFailed,
       };
 
       console.log("Final result:", finalResult);
 
-      // Step 4: Broadcast to all participants
       socket.emit("endDebate", {
         roomId,
         result: finalResult,
@@ -215,7 +223,6 @@ export default function DebateRoom() {
 
   return (
     <div className="pt-24 max-w-3xl mx-auto h-[80vh] flex flex-col">
-      {/* Header */}
       <div className="mb-4 text-center">
         <h1 className="text-3xl font-bold mb-2">
           <span className="text-blue-600">{topic || "Debate Room"}</span>
@@ -226,7 +233,6 @@ export default function DebateRoom() {
         </p>
       </div>
 
-      {/* Lobby */}
       {!debateStarted ? (
         <div className="border rounded p-4 flex flex-col gap-4 bg-gray-50">
           <h2 className="text-xl font-bold">Lobby</h2>
@@ -278,7 +284,6 @@ export default function DebateRoom() {
           )}
         </div>
       ) : debateEnded ? (
-        /* Results Screen */
         <div className="border rounded p-6 flex flex-col gap-4 bg-white shadow-lg max-w-2xl mx-auto">
           <h2 className="text-2xl font-bold text-center text-green-600">
             🏆 Debate Ended!
@@ -296,7 +301,6 @@ export default function DebateRoom() {
           <div className="bg-gray-50 p-4 rounded border border-gray-200">
             <h3 className="font-bold text-lg mb-3 text-gray-800">Results</h3>
 
-            {/* Winner */}
             <div className="mb-3 p-3 bg-white rounded border-l-4 border-green-500">
               <strong className="text-gray-700">Winner:</strong>{" "}
               <span className="text-green-600 font-semibold text-lg">
@@ -304,20 +308,19 @@ export default function DebateRoom() {
               </span>
             </div>
 
-            {/* Scores */}
-            {debateResult?.scores && !debateResult?.aiAnalysisFailed && (
+            {debateResult?.score_team_a !== undefined && !debateResult?.aiAnalysisFailed && (
               <div className="mb-3 p-3 bg-white rounded">
                 <strong className="text-gray-700 block mb-2">Scores:</strong>
                 <div className="flex gap-4 justify-around">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-blue-600">
-                      {debateResult.scores.teamA || 0}
+                      {debateResult.score_team_a?.toFixed(2) || "0.00"}
                     </div>
                     <div className="text-sm text-gray-600">Team A</div>
                   </div>
                   <div className="text-center">
                     <div className="text-2xl font-bold text-red-600">
-                      {debateResult.scores.teamB || 0}
+                      {debateResult.score_team_b?.toFixed(2) || "0.00"}
                     </div>
                     <div className="text-sm text-gray-600">Team B</div>
                   </div>
@@ -325,7 +328,6 @@ export default function DebateRoom() {
               </div>
             )}
 
-            {/* Total Arguments */}
             <div className="mb-3 p-3 bg-white rounded">
               <strong className="text-gray-700">Total Arguments:</strong>{" "}
               <span className="text-gray-900">
@@ -333,20 +335,11 @@ export default function DebateRoom() {
               </span>
             </div>
 
-            {/* AI Summary */}
-            <div className="mb-3 p-3 bg-white rounded">
-              <strong className="text-gray-700 block mb-1">Summary:</strong>
-              <p className="text-gray-800 leading-relaxed">
-                {debateResult?.aiSummary || "Thank you for participating!"}
-              </p>
-            </div>
-
-            {/* Reasoning */}
-            {debateResult?.reasoning && !debateResult?.aiAnalysisFailed && (
+            {debateResult?.justification && (
               <div className="p-3 bg-blue-50 rounded border border-blue-200">
-                <strong className="text-gray-700 block mb-1">Reasoning:</strong>
+                <strong className="text-gray-700 block mb-1">Justification:</strong>
                 <p className="text-gray-800 leading-relaxed">
-                  {debateResult.reasoning}
+                  {debateResult.justification}
                 </p>
               </div>
             )}
@@ -360,7 +353,6 @@ export default function DebateRoom() {
           </button>
         </div>
       ) : (
-        /* Active Debate */
         <div className="flex-1 flex flex-col">
           <div className="flex-1 border rounded p-4 overflow-y-auto bg-gray-50 shadow-inner flex flex-col space-y-2">
             {messages.map((msg, idx) => (

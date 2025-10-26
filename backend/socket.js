@@ -18,89 +18,116 @@ app.use(cors({ origin: "http://localhost:3000", credentials: true }));
 app.use(express.json());
 
 // MongoDB connection
-mongoose.connect(process.env.MONGO_URI, { useNewUrlParser: true, useUnifiedTopology: true });
-
-// Debate Schema
-const debateSchema = new mongoose.Schema({
-  topic: String,
-  type: String,
-  participants: [
-    { userId: String, name: String, role: String } // role: teamA, teamB, observer
-  ],
-  messages: [{ userId: String, name: String, text: String, timestamp: Date }],
-  aiSummary: String,
-  winner: String,
+mongoose.connect(process.env.MONGO_URI, { 
+  useNewUrlParser: true, 
+  useUnifiedTopology: true 
 });
 
-const Debate = mongoose.model("Debate", debateSchema);
-
-// API to create room
-app.post("/api/debates/create", async (req, res) => {
-  const { topic, type } = req.body;
-  const debate = new Debate({ topic, type, participants: [], messages: [] });
-  await debate.save();
-  res.json({ roomId: debate._id });
+mongoose.connection.on('connected', () => {
+  console.log('✅ MongoDB connected successfully');
 });
 
-// API to end debate
-app.post("/api/debates/end/:roomId", async (req, res) => {
-  const { roomId } = req.params;
-  const { aiSummary, winner, arguments: messages } = req.body;
-  const debate = await Debate.findByIdAndUpdate(roomId, {
-    aiSummary,
-    winner,
-    messages,
-  });
-  if (debate) res.json({ msg: "Debate ended" });
-  else res.status(404).json({ msg: "Debate not found" });
+mongoose.connection.on('error', (err) => {
+  console.error('❌ MongoDB connection error:', err);
 });
 
-// --- Socket.IO for real-time lobby and messages ---
-const rooms = {}; // { roomId: { participants: [] } }
+// Import routes
+import authRoutes from "./routes/Auth.js";
+import debateRoutes from "./routes/debates.js";
+
+app.use("/api/auth", authRoutes);
+app.use("/api/debates", debateRoutes);
+
+// --- Socket.IO for real-time lobby and messages (NO DB SAVING) ---
+const rooms = {};
 
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
-  // Join room
   socket.on("joinRoom", async ({ roomId, userId, name }) => {
-    if (!rooms[roomId]) rooms[roomId] = { participants: [] };
-    const room = rooms[roomId];
-
-    // Avoid duplicate
-    if (!room.participants.find((p) => p.userId === userId)) {
-      room.participants.push({ userId, name, role: "" });
+    socket.join(roomId);
+    
+    if (!rooms[roomId]) {
+      rooms[roomId] = { participants: [], messages: [] };
     }
 
-    socket.join(roomId);
+    const room = rooms[roomId];
+
+    if (!room.participants.find((p) => p.userId === userId)) {
+      room.participants.push({ userId, name, socketId: socket.id, role: "" });
+    }
+
     io.to(roomId).emit("updateParticipants", room.participants);
+    console.log(`${name} joined room ${roomId}`);
   });
 
-  // Choose role/team
   socket.on("chooseRole", ({ roomId, userId, role }) => {
     const room = rooms[roomId];
     if (!room) return;
+    
     const participant = room.participants.find((p) => p.userId === userId);
-    if (participant) participant.role = role;
-    io.to(roomId).emit("updateParticipants", room.participants);
+    if (participant) {
+      participant.role = role;
+      io.to(roomId).emit("updateParticipants", room.participants);
+      console.log(`${participant.name} chose role: ${role}`);
+    }
   });
 
-  // Start debate
   socket.on("startDebate", ({ roomId }) => {
     io.to(roomId).emit("debateStarted");
+    console.log(`Debate started in room ${roomId}`);
   });
 
-  // Send message
+  // 🔥 MODIFIED: Only broadcast message, DON'T save to DB
   socket.on("sendMessage", (msg) => {
-    io.to(msg.roomId).emit("receiveMessage", msg);
+    const { roomId, name, text } = msg;
+    
+    // Save to in-memory only
+    if (!rooms[roomId]) {
+      rooms[roomId] = { participants: [], messages: [] };
+    }
+    rooms[roomId].messages.push(msg);
+
+    // Broadcast to all users
+    io.to(roomId).emit("receiveMessage", msg);
+    console.log(`💬 Message from ${name}: "${text}"`);
   });
 
-  // Leave room
+  socket.on("endDebate", async ({ roomId, result }) => {
+    console.log(`📢 Broadcasting debate end to room ${roomId}`);
+    io.to(roomId).emit("debateEnded", result);
+    
+    if (rooms[roomId]) {
+      delete rooms[roomId];
+      console.log(`🧹 Room ${roomId} cleaned up`);
+    }
+  });
+
   socket.on("leaveRoom", ({ roomId, userId }) => {
     const room = rooms[roomId];
-    if (!room) return;
-    room.participants = room.participants.filter((p) => p.userId !== userId);
-    io.to(roomId).emit("updateParticipants", room.participants);
+    if (room) {
+      room.participants = room.participants.filter((p) => p.userId !== userId);
+      io.to(roomId).emit("updateParticipants", room.participants);
+      console.log(`User ${userId} left room ${roomId}`);
+    }
+    socket.leave(roomId);
+  });
+
+  socket.on("disconnect", () => {
+    console.log("User disconnected:", socket.id);
+    
+    Object.keys(rooms).forEach((roomId) => {
+      const room = rooms[roomId];
+      const disconnectedUser = room.participants.find(p => p.socketId === socket.id);
+      
+      if (disconnectedUser) {
+        room.participants = room.participants.filter(p => p.socketId !== socket.id);
+        io.to(roomId).emit("updateParticipants", room.participants);
+        console.log(`${disconnectedUser.name} disconnected from room ${roomId}`);
+      }
+    });
   });
 });
 
-server.listen(5000, () => console.log("Server running on port 5000"));
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => console.log(`🚀 Server running on port ${PORT}`));

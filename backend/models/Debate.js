@@ -1,33 +1,37 @@
 import mongoose from "mongoose";
 
-// Schema for individual arguments/messages within a debate
+const participantSchema = new mongoose.Schema({
+  userId: { type: String, required: true },
+  team: { type: String, enum: ["A", "B"], required: true },
+  displayName: { type: String, required: true }
+}, { _id: false });
+
+const observerSchema = new mongoose.Schema({
+  userId: { type: String, required: true },
+  displayName: { type: String, required: true }
+}, { _id: false });
+
 const argumentSchema = new mongoose.Schema({
-  userId: String,
-  team: String,
-  message: String,
-  // timestamp removed
-});
+  userId: { type: String, required: true },
+  team: { type: String, enum: ["A", "B"], required: true },
+  message: { type: String, required: true }
+}, { _id: false });
 
-// Main Debate Schema
 const debateSchema = new mongoose.Schema({
-  roomId: { type: String, unique: true },  // This is your DebateId
-  topic: String,
-  type: String,
-  maxParticipantsA: Number,
-  maxParticipantsB: Number,
-  participants: [{ userId: String, name: String, team: String }],
-  observers: [{ userId: String, name: String }],
-  arguments: [argumentSchema],
-  status: { type: String, default: "waiting" },
-  aiSummary: String,
-  winner: String,
-  reasoning: String,
-  scores: {
-    teamA: Number,
-    teamB: Number
-  },
-  endedAt: Date,
-});
+  roomId: { type: String, required: true, unique: true },
+  topic: { type: String, required: true },
+  type: { type: String },
+  maxParticipantsA: { type: Number },
+  maxParticipantsB: { type: Number },
+  participants: { type: [participantSchema], default: [] },
+  observers: { type: [observerSchema], default: [] },
+  arguments: { type: [argumentSchema], default: [] },
+  status: { type: String, enum: ["active", "finished"], default: "active" },
+  endedAt: { type: Date },
+  winner: { type: String },
+  justification: { type: String },
+  score_team_a: { type: Number, default: 0 },
+  score_team_b: { type: Number, default: 0 }
+}, { timestamps: true });
 
-const Debate = mongoose.models.Debate || mongoose.model("Debate", debateSchema);
-export default Debate;
+export default mongoose.model("Debate", debateSchema);

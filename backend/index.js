@@ -41,17 +41,17 @@ io.on("connection", (socket) => {
 
   // Join a room
   socket.on("joinRoom", ({ roomId, userId, name }) => {
-    if (!rooms[roomId]) rooms[roomId] = { participants: [] };
-    const room = rooms[roomId];
+  if (!rooms[roomId]) rooms[roomId] = { participants: [] };
+  const room = rooms[roomId];
 
-    // Avoid duplicate entries
-    if (!room.participants.find((p) => p.userId === userId)) {
-      room.participants.push({ userId, name, role: "" });
-    }
+  if (!room.participants.find((p) => p.userId === userId)) {
+    room.participants.push({ userId, name, role: "" });
+  }
 
-    socket.join(roomId);
-    io.to(roomId).emit("updateParticipants", room.participants);
-  });
+  socket.join(roomId);
+  io.to(roomId).emit("updateParticipants", room.participants);
+});
+
 
   // Choose a team or observer role
   socket.on("chooseRole", ({ roomId, userId, role }) => {
