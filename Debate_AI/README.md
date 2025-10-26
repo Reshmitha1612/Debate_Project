@@ -121,8 +121,3 @@ Server will start at 👉 **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)**
 
 ```
 
----
-
-Would you like me to make a **version 2** of this README (shorter and simplified) to go in the **main branch root** summarizing both your AI work and your teammate’s backend work together?
-```
-
