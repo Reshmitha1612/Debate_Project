@@ -1,98 +1,128 @@
-# Debate Project – AI Workflow
+# 🧠 Debate AI Module
 
-This document describes the AI workflow for the debate project, detailing the models, datasets, and processing steps used for scoring and justifying arguments.
-
----
-
-## **1. Argument Scoring**
-
-- **Model:** DistilBERT (fine-tuned)
-- **Training Data:**
-  - **Webis Dataset**
-  - **IBM Debater Dataset**
-  - Both datasets are combined for improved argument scoring performance.
-- **Task:** Evaluate the **strength and relevance** of each argument.
-- **Output:** A numerical **score** representing the quality of the argument.
+## 📘 Project Description
+This module serves as the **AI engine** of the Debate Platform. It analyzes multi-user debates and generates **argument scores** and **AI-based justifications** using fine-tuned transformer models. The goal is to make debate evaluation objective, scalable, and multilingual.
 
 ---
 
-## **2. Justification / Explanation**
+## ⚙️ Tech Stack & Prerequisites
 
-- **Model:** T5 Small
-- **Task:** Generate **natural language explanations** for the assigned argument scores.
-- **Input:** Argument text + predicted score
-- **Output:** Coherent justification text explaining why the argument received that score.
+**Languages & Frameworks**
+- Python 3.10+
+- FastAPI (for serving APIs)
+- PyTorch (for model training and inference)
+- Hugging Face Transformers
 
----
+**Models Used**
+- `DistilBERT` – Fine-tuned for **argument scoring**
+- `T5-small` – Used for **text justification generation**
 
-## **3. Deployment & Runtime**
+**Datasets**
+- Combined **Webis** and **IBM Debater** datasets for robust multilingual fine-tuning.
 
-- **Backend Framework:** FastAPI
-- **Containerization:** Docker
-- **GPU:** NVIDIA **T4 GPU** (for efficient inference and batch processing)
-- **Input/Output Format:**
-  - **Input JSON Example:**
-    ```json
-    {
-      "DebateId": "12345",
-      "topic": "Should AI replace human teachers?",
-      "arguments": [
-        {
-          "userId": "abc123",
-          "team": "A",
-          "message": "AI can provide personalized learning experiences.",
-          "timestamp": "2025-10-24T12:30:00Z"
-        },
-        {
-          "userId": "def456",
-          "team": "B",
-          "message": "Human teachers understand emotions better than AI.",
-          "timestamp": "2025-10-24T12:32:00Z"
-        }
-      ]
-    }
-    ```
-  - **Output JSON Example:**
-    ```json
-      {
-        "DebateId": "D001",
-        "topic": "Should cricket be included in the Olympics?",
-        "score_team_a": 0.8129299283027649,
-        "score_team_b": 0.7649002075195312,
-        "winner": "Team A",
-        "justification": "Team A emphasized globalization and inclusion. Team B emphasized importance of international engagement. Team A won for promoting            globalization."
-      }
-
-arey API nundi neeku json lo vache output ilaa vuntundhi check chesuko
-    ```
+**Hardware**
+- NVIDIA **T4 GPU** (used for fine-tuning and inference)
 
 ---
 
-## **4. Collaboration Flow**
-
-1. **Input:** Teammate backend sends debate JSON to FastAPI endpoint.
-2. **Processing:** DistilBERT scores the arguments, then T5 generates justifications.
-3. **Output:** FastAPI returns JSON results for direct use by the teammate’s backend.
-
----
-
-## **5. Access & Local Testing**
-
-- **Localhost Link (for testing):** [http://localhost:8000](http://localhost:8000)
+## 🧩 Features
+- Accepts JSON input containing the topic, users, and their debate arguments.  
+- Outputs AI-generated argument **scores** and **justification summaries**.  
+- Supports **multilingual** debates.  
+- Integrates easily with backend APIs for real-time debate evaluation.
 
 ---
 
-**Notes:**
+## 🚀 Setup & Run Locally
 
-- Fine-tuning DistilBERT on a combined dataset improves argument scoring.
-- T5 Small provides concise and meaningful justifications without heavy computation.
-- Docker + T4 GPU ensures smooth deployment and fast inference for real-time debate analysis.
+### 1️⃣ Clone the Repository
+```bash
+git clone https://github.com/<your-username>/Debate_AI.git
+cd Debate_AI
+````
 
-**Future Outlook:**
-Enhanced Scoring Models: Explore using multilingual and larger transformer models for more nuanced scoring.
-Explainability Improvements: Generate deeper reasoning or multiple justifications per argument.
-Real-Time Scaling: Deploy on cloud GPUs for larger debates with many participants.
-Cross-Platform Integration: Connect with web, mobile, and VR debate platforms.
-Automated Feedback: Suggest improvements to participants’ arguments based on AI insights.
-Dataset Expansion: Continuously include new datasets to improve scoring fairness and coverage.
+### 2️⃣ Create and Activate Virtual Environment
+
+```bash
+python -m venv venv
+venv\Scripts\activate  # for Windows
+# OR
+source venv/bin/activate  # for Linux/Mac
+```
+
+### 3️⃣ Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4️⃣ Run the FastAPI Server
+
+```bash
+uvicorn main:app --reload
+```
+
+Server will start at 👉 **[http://127.0.0.1:8000/](http://127.0.0.1:8000/)**
+
+---
+
+## 🧠 Example Input
+
+```json
+{
+  "DebateId":"sbcjkjasoc09",
+  "topic": "Should AI replace human teachers?",
+  "arguments": [
+    {"userId": "u1", "team": "A", "message": "AI can personalize learning."},
+    {"userId": "u2", "team": "B", "message": "Teachers provide emotional support."},
+    {"userId": "u3", "team": "A", "message": "AI adapts to students' pace."},
+    {"userId": "u4", "team": "B", "message": "Human empathy cannot be replicated."}
+  ]
+}
+```
+
+---
+
+## 🧾 Example Output
+
+```json
+{
+  "debateId": "xyz123",
+  "scores": {
+    "team A": 0.86,
+    "Team B": 0.64,
+  },
+  "justification": "  Gives emphasis of both teams and justifies why a particular team won."
+}
+```
+
+---
+
+## 👩‍💻 Tech Team Collaboration
+
+* The **AI Team** (this module) handled all model fine-tuning, scoring logic, and justification generation.
+* The **Tech Team** developed the backend infrastructure using **Node.js**, **Express.js**, and **Socket.IO** for real-time debates.
+* Integration between both teams ensures smooth communication between the debate UI and the AI scoring API.
+
+---
+
+## 🔮 Future Outlook
+
+* Full integration with the main debate platform for **live debate evaluation**.
+* Enhanced **multilingual model support** for global debate participation.
+* Incorporation of **blockchain technology** to ensure **transparency and trust** in AI scoring.
+
+  * Example: Storing AI-generated scores and justifications on a decentralized ledger to prevent tampering and enable fairness audits.
+* Adoption of **Explainable AI (XAI)** to improve interpretability and transparency of scoring.
+
+---
+
+📍 **Local Test URL:** [http://127.0.0.1:8000/](http://127.0.0.1:8000/)
+
+```
+
+---
+
+Would you like me to make a **version 2** of this README (shorter and simplified) to go in the **main branch root** summarizing both your AI work and your teammate’s backend work together?
+```
 
